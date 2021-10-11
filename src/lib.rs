@@ -9,13 +9,21 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(args: &[String]) -> Result<Config, &str> {
-        if args.len() < 3 {
-            return Err("not enough parameters");
-        }
+    pub fn new<T>(mut args: T) -> Result<Config, &'static str>
+    where
+        T: Iterator<Item = String>,
+    {
+        args.next();
 
-        let query = args[1].clone();
-        let filename = args[2].clone();
+        let query = match args.next() {
+            Some(arg) => arg,
+            None => return Err("Didn't get a query value."),
+        };
+
+        let filename = match args.next() {
+            Some(arg) => arg,
+            None => return Err("Didn't get a filename value."),
+        };
 
         let case_sensitive = env::var("CASE_SENSITIVE").is_err();
 
@@ -28,13 +36,10 @@ impl Config {
 }
 
 pub fn search<'a>(query: &str, content: &'a str) -> Vec<&'a str> {
-    let mut result = Vec::new();
-    for line in content.lines() {
-        if line.contains(query) {
-            result.push(line);
-        }
-    }
-    result
+    content
+        .lines()
+        .filter(|line| line.contains(query))
+        .collect()
 }
 
 pub fn search_case_insensitive<'a>(query: &str, content: &'a str) -> Vec<&'a str> {
@@ -72,7 +77,7 @@ mod tests {
         let query = "query";
         let filename = "filename";
         let args = ["".to_string(), query.to_string(), filename.to_string()];
-        let config = Config::new(&args).unwrap();
+        let config = Config::new(args.iter().map(|s| s.to_string())).unwrap();
 
         assert_eq!(config.query, query);
         assert_eq!(config.filename, filename);
